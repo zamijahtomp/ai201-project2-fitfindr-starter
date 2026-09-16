@@ -1,6 +1,8 @@
 # FitFindr — Starter Kit
 
-This starter kit contains everything you need to begin Project 2.
+## Demo Video
+
+[FitFinder Demo, Outfits From Your Wardrobe (Loom, with captions)](https://www.loom.com/share/9897ba829e814dbca3061a283c18cc0d)
 
 ## What's Included
 
