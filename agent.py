@@ -18,7 +18,11 @@ Usage (once implemented):
     print(result["error"])   # None on success
 """
 
+import re
+
 from tools import search_listings, suggest_outfit, create_fit_card
+
+_SIZE_RE = re.compile(r"\bsize\s+([A-Za-z0-9/]+)\b", re.IGNORECASE)
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -45,6 +49,33 @@ def _new_session(query: str, wardrobe: dict) -> dict:
     }
 
 
+def _parse_query(query: str) -> dict:
+    """
+    Extract a free-text description, an optional size, and an optional max
+    price from the user's natural language query using regex/string parsing.
+    """
+    size_match = _SIZE_RE.search(query)
+    size = size_match.group(1) if size_match else None
+
+    max_price = None
+    price_match = re.search(
+        r"(?:under|below|less than)\s*\$?\s*(\d+(?:\.\d+)?)", query, re.IGNORECASE
+    )
+    if not price_match:
+        price_match = re.search(r"\$\s*(\d+(?:\.\d+)?)", query)
+    if price_match:
+        max_price = float(price_match.group(1))
+
+    description = query
+    if size_match:
+        description = description.replace(size_match.group(0), "")
+    if price_match:
+        description = description.replace(price_match.group(0), "")
+    description = re.sub(r"[?!.]", "", description).strip()
+
+    return {"description": description, "size": size, "max_price": max_price}
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 def run_agent(query: str, wardrobe: dict) -> dict:
@@ -62,8 +93,6 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         The session dict after the interaction completes. Check session["error"]
         first — if it is not None, the interaction ended early and the other
         output fields (outfit_suggestion, fit_card) will be None.
-
-    TODO — implement this function using the planning loop you designed in planning.md:
 
         Step 1: Initialize the session with _new_session().
 
@@ -92,9 +121,34 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     Before writing code, complete the Planning Loop and State Management sections
     of planning.md — your implementation should match what you described there.
     """
-    # TODO: implement the planning loop
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+
+    session["parsed"] = _parse_query(query)
+
+    results = search_listings(
+        description=session["parsed"]["description"],
+        size=session["parsed"]["size"],
+        max_price=session["parsed"]["max_price"],
+    )
+    session["search_results"] = results
+
+    if not results:
+        session["error"] = (
+            "No clothing items matching your description were found — "
+            "try broadening your search or raising your price limit."
+        )
+        return session
+
+    session["selected_item"] = results[0]
+
+    session["outfit_suggestion"] = suggest_outfit(
+        session["selected_item"], session["wardrobe"]
+    )
+
+    session["fit_card"] = create_fit_card(
+        session["outfit_suggestion"], session["selected_item"]
+    )
+
     return session
 
 
