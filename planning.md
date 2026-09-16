@@ -84,6 +84,7 @@ Get a description, size, and max price from the user, and use search_listings() 
 
 **How does information from one tool get passed to the next?**
 All state lives in a single session dict created at the start of the run (`_new_session`). Each planning loop step reads what it needs from the session and writes its result back into the session before moving to the next step, so no data is passed directly between tool calls — it always flows through the dict:
+
 - `parsed` (description/size/max_price) is read by `search_listings`.
 - `search_results` and `selected_item` (top result) are read by `suggest_outfit`.
 - `outfit_suggestion` and `selected_item` are read by `create_fit_card`.
